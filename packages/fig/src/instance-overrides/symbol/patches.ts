@@ -4,7 +4,6 @@ import {
   VARIABLE_BINDING_FIELDS_INVERSE
 } from '@open-pencil/fig/node-change'
 import type { GUID } from '@open-pencil/kiwi/fig/codec'
-
 import { copyFills } from '@open-pencil/scene-graph/copy'
 
 import type { OverridePatch } from '../patches'

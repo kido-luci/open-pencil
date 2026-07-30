@@ -59,6 +59,31 @@ describe('export subgraph extraction', () => {
     expect(extracted.graph.getNode(libraryPage.id)?.type).toBe('CANVAS')
   })
 
+  test('page extraction hides component-host pages so the requested page opens', async () => {
+    await initCodec()
+    const graph = new SceneGraph()
+    // Host page FIRST in document order — the ordering where the exported
+    // file used to list and open the host page instead of the target.
+    const libraryPage = graph.getPages()[0]
+    const targetPage = graph.addPage('Target')
+    const component = graph.createNode('COMPONENT', libraryPage.id, {
+      name: 'Button',
+      width: 100,
+      height: 40
+    })
+    graph.createInstance(component.id, targetPage.id)
+
+    const extracted = extractExportGraph(graph, { scope: 'page', pageId: targetPage.id })
+
+    expect(extracted.graph.getNode(libraryPage.id)?.internalOnly).toBe(true)
+    expect(extracted.graph.getPages().map((node) => node.id)).toEqual([targetPage.id])
+
+    const exported = await exportFigFile(extracted.graph)
+    const parsed = await parseFigFile(exported.buffer as ArrayBuffer)
+
+    expect(parsed.getPages().map((node) => node.name)).toEqual(['Target'])
+  })
+
   test('fig page export preserves valid instance component references without serializing instance children', async () => {
     await initCodec()
     const graph = new SceneGraph()

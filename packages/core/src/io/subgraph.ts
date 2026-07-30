@@ -258,6 +258,12 @@ export function extractExportGraph(source: SceneGraph, target: ExportTarget): Ex
     case 'page': {
       const graph = cloneIntoGraph(source, pageNodeIds(source, target.pageId))
       const page = graph.getNode(target.pageId)
+      // Cross-page component hosts ride along only so instances can resolve.
+      // Mark them internal so the exported file lists and opens the requested
+      // page, mirroring Figma's own "Internal Only Canvas" convention.
+      for (const other of graph.getPages(true)) {
+        if (other.id !== target.pageId) other.internalOnly = true
+      }
       return {
         graph,
         pageId: page?.id ?? null,

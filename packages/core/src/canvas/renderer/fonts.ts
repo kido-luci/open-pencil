@@ -127,6 +127,7 @@ export async function prepareForExport(
     missingGraphFontScripts(requirements),
     requirements.characters
   )
+  await fontManager.ensureEmojiFallback()
   syncFontGeneration(r)
   computeAllLayouts(graph, pageId)
 

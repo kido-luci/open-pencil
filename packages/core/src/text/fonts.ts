@@ -56,6 +56,8 @@ export class FontManager {
   private cjkFallbackPromise: Promise<string[]> | null = null
   private arabicFallbackFamilies: string[] = []
   private arabicFallbackPromise: Promise<string[]> | null = null
+  private emojiFallbackFamilies: string[] = []
+  private emojiFallbackPromise: Promise<string[]> | null = null
 
   attachProvider(_canvasKit: CanvasKit, provider: TypefaceFontProvider): void {
     this.fontProviders.add(provider)
@@ -396,6 +398,71 @@ export class FontManager {
 
   getArabicFallbackFamilies(): string[] {
     return this.arabicFallbackFamilies
+  }
+
+  /**
+   * Load the platform color-emoji font as a last-resort fallback family.
+   * Order: host loader (desktop app), well-known system paths (Node/CLI),
+   * then the browser's local-font access. Best effort — a platform without
+   * a reachable emoji font simply keeps the current tofu behaviour.
+   */
+  async ensureEmojiFallback(): Promise<string[]> {
+    if (this.emojiFallbackFamilies.length > 0) return this.emojiFallbackFamilies
+    if (this.emojiFallbackPromise) return this.emojiFallbackPromise
+    this.emojiFallbackPromise = this.loadEmojiFallback()
+    return this.emojiFallbackPromise
+  }
+
+  getEmojiFallbackFamilies(): string[] {
+    return this.emojiFallbackFamilies
+  }
+
+  private async loadEmojiFallback(): Promise<string[]> {
+    const candidates: Array<{ family: string; load: () => Promise<ArrayBuffer | null> }> = [
+      { family: 'Apple Color Emoji', load: () => this.loadHostFont('Apple Color Emoji', 'Regular') }
+    ]
+    if (!IS_BROWSER) {
+      const paths: Array<[string, string]> = [
+        ['Apple Color Emoji', '/System/Library/Fonts/Apple Color Emoji.ttc'],
+        ['Segoe UI Emoji', 'C:\\Windows\\Fonts\\seguiemj.ttf'],
+        ['Noto Color Emoji', '/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf']
+      ]
+      for (const [family, path] of paths) {
+        candidates.push({
+          family,
+          load: async () => {
+            try {
+              const { readFile } = await import(/* @vite-ignore */ 'node:fs/promises')
+              const buf = await readFile(path)
+              return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+            } catch {
+              return null
+            }
+          }
+        })
+      }
+    } else {
+      candidates.push({
+        family: 'Apple Color Emoji',
+        load: () => this.findLocalFont('Apple Color Emoji', 'Regular')
+      })
+      candidates.push({
+        family: 'Segoe UI Emoji',
+        load: () => this.findLocalFont('Segoe UI Emoji', 'Regular')
+      })
+    }
+    for (const candidate of candidates) {
+      try {
+        const buffer = await candidate.load()
+        if (!buffer) continue
+        this.registerAndCache(candidate.family, 'Regular', buffer)
+        this.emojiFallbackFamilies.push(candidate.family)
+        return this.emojiFallbackFamilies
+      } catch {
+        // try the next candidate
+      }
+    }
+    return this.emojiFallbackFamilies
   }
 
   setArabicFallbackFamily(family: string): void {

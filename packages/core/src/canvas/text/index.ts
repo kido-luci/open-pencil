@@ -239,7 +239,8 @@ function resolveParagraphFontFamilies(
   primary: string,
   style: string,
   arabicFallbacks: readonly string[],
-  cjkFallbacks: readonly string[]
+  cjkFallbacks: readonly string[],
+  emojiFallbacks: readonly string[] = []
 ): string[] {
   const renderPrimary = fontManager.renderFamily(primary, style)
   const renderArabicFallbacks = arabicFallbacks.map((family) =>
@@ -248,13 +249,13 @@ function resolveParagraphFontFamilies(
   const renderCJKFallbacks = cjkFallbacks.map((family) =>
     fontManager.renderFamily(family, 'Regular')
   )
-  const key = `${renderPrimary}\0${renderArabicFallbacks.join('\0')}\0${renderCJKFallbacks.join('\0')}`
+  const key = `${renderPrimary}\0${renderArabicFallbacks.join('\0')}\0${renderCJKFallbacks.join('\0')}\0${emojiFallbacks.join('\0')}`
   const cached = fontFamilyCache.get(key)
   if (cached) return cached
 
   const families = [renderPrimary]
   if (primary !== DEFAULT_FONT_FAMILY) families.push(DEFAULT_FONT_FAMILY)
-  families.push(...renderArabicFallbacks, ...renderCJKFallbacks)
+  families.push(...renderArabicFallbacks, ...renderCJKFallbacks, ...emojiFallbacks)
 
   const resolved = uniq(families)
   fontFamilyCache.set(key, resolved)
@@ -452,6 +453,7 @@ export function buildParagraph(
   const baseFontSize = node.fontSize || DEFAULT_FONT_SIZE
   const cjkFallbacks = fontManager.getCJKFallbackFamilies()
   const arabicFallbacks = fontManager.getArabicFallbackFamilies()
+  const emojiFallbacks = fontManager.getEmojiFallbackFamilies()
   const textDirection = resolveNodeTextDirection(node)
 
   const truncateOpts = buildTruncateOpts(node, baseFontSize)
@@ -461,7 +463,8 @@ export function buildParagraph(
       primary,
       weightToStyle(weight, italic),
       arabicFallbacks,
-      cjkFallbacks
+      cjkFallbacks,
+      emojiFallbacks
     )
 
   const paraStyle = new ck.ParagraphStyle({

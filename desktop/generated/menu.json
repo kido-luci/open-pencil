@@ -42,6 +42,10 @@
             "label": "SVG"
           },
           {
+            "id": "export-pptx",
+            "label": "PPTX"
+          },
+          {
             "id": "export-fig",
             "label": ".fig"
           }

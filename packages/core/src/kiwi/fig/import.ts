@@ -450,6 +450,23 @@ export function importNodeChanges(
   const guidToNodeId = new Map<string, string>()
   const getChildren = (ncId: string): string[] => childrenMap.get(ncId) ?? []
 
+  // Text nodes inside component masters keep their real textAutoResize: an
+  // instance may override their characters, and a NONE box converted to
+  // auto-size renders that longer text unclipped instead of Figma's clip.
+  const symbolDescendantIds = new Set<string>()
+  {
+    const stack: string[] = []
+    for (const [id, nc] of changeMap) {
+      if (nc.type === 'SYMBOL') stack.push(...getChildren(id))
+    }
+    while (stack.length > 0) {
+      const id = stack.pop() as string
+      if (symbolDescendantIds.has(id)) continue
+      symbolDescendantIds.add(id)
+      stack.push(...getChildren(id))
+    }
+  }
+
   function createSceneNode(ncId: string, graphParentId: string) {
     if (created.has(ncId)) return
     created.add(ncId)
@@ -460,7 +477,10 @@ export function importNodeChanges(
     const { nodeType, ...props } = nodeChangeToProps(nc, blobs)
     if (props.sharedStyleType) props.internalOnly = true
     if (nodeType === 'DOCUMENT' || nodeType === 'VARIABLE' || nc.type === 'VARIABLE_SET') return
-    if (shouldImportTextAsAutoSize(nc, changeMap.get(parentMap.get(ncId) ?? ''))) {
+    if (
+      !symbolDescendantIds.has(ncId) &&
+      shouldImportTextAsAutoSize(nc, changeMap.get(parentMap.get(ncId) ?? ''))
+    ) {
       props.textAutoResize = 'WIDTH_AND_HEIGHT'
     }
 

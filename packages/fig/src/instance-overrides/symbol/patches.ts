@@ -5,6 +5,8 @@ import {
 } from '@open-pencil/fig/node-change'
 import type { GUID } from '@open-pencil/kiwi/fig/codec'
 
+import { copyFills } from '@open-pencil/scene-graph/copy'
+
 import type { OverridePatch } from '../patches'
 import { getComponentRoot } from '../resolve'
 import type { OverrideContext, SymbolOverride, SymbolOverrideFields } from '../types'
@@ -100,8 +102,8 @@ function applyDetachedFillReversion(
   const rootId = getComponentRoot(ctx, targetId)
   if (rootId === targetId) return
   const root = ctx.graph.getNode(rootId)
-  if (!root?.fills?.length) return
-  props.fills = structuredClone(root.fills)
+  if (!root || root.fills.length === 0) return
+  props.fills = copyFills(root.fills)
 }
 
 export function patchFromSymbolOverride(

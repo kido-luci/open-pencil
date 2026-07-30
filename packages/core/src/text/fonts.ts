@@ -458,8 +458,8 @@ export class FontManager {
         this.registerAndCache(candidate.family, 'Regular', buffer)
         this.emojiFallbackFamilies.push(candidate.family)
         return this.emojiFallbackFamilies
-      } catch {
-        // try the next candidate
+      } catch (e) {
+        console.warn(`Emoji fallback registration failed for "${candidate.family}":`, e)
       }
     }
     return this.emojiFallbackFamilies

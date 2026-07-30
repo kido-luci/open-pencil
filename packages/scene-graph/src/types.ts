@@ -256,6 +256,14 @@ export interface StyleRun {
   style: CharacterStyleOverride
 }
 
+export type TextLineType = 'PLAIN' | 'ORDERED_LIST' | 'UNORDERED_LIST'
+
+/** Per-source-line list structure of a TEXT node (split on '\n'). */
+export interface TextLine {
+  lineType: TextLineType
+  indentationLevel: number
+}
+
 export interface ArcData {
   startingAngle: number
   endingAngle: number
@@ -413,6 +421,7 @@ export interface SceneNode {
   maxLines: number | null
 
   styleRuns: StyleRun[]
+  textLines: TextLine[]
   fontVariations: FontVariation[]
   fontFeatures: FontFeature[]
 

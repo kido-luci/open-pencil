@@ -1,5 +1,6 @@
 import {
   convertFills,
+  convertTextLines,
   mapStackSizing,
   mapStackJustify,
   mapStackCounterAlign,
@@ -20,8 +21,13 @@ import type { Vector } from '@open-pencil/scene-graph/primitives'
 
 function applyOverridePaints(ov: Record<string, unknown>, updates: Partial<SceneNode>): void {
   if (ov.textData != null) {
-    const td = ov.textData as { characters?: string }
+    const td = ov.textData as {
+      characters?: string
+      lines?: NonNullable<NodeChange['textData']>['lines']
+    }
     if (td.characters != null) updates.text = td.characters
+    const lines = convertTextLines(td.lines)
+    if (lines.length > 0) updates.textLines = lines
     const runs = importStyleRuns(ov as NodeChange)
     if (runs.length > 0) updates.styleRuns = runs
   }

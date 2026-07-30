@@ -41,9 +41,13 @@ import {
 } from './export-node'
 import { exportTextData, fontVariationToKiwi } from './text-data-export'
 
-function textLines(text: string): NonNullable<NodeChange['textData']>['lines'] {
-  const lineCount = Math.max(1, text.split('\n').length)
-  return Array.from({ length: lineCount }, () => ({ lineType: 'PLAIN' }))
+function textLines(node: SceneNode): NonNullable<NodeChange['textData']>['lines'] {
+  const lineCount = Math.max(1, node.text.split('\n').length)
+  return Array.from({ length: lineCount }, (_, index) => {
+    const line = node.textLines.at(index)
+    if (!line || line.lineType === 'PLAIN') return { lineType: 'PLAIN' }
+    return { lineType: line.lineType, indentationLevel: line.indentationLevel }
+  })
 }
 
 function appendGlyphBlob(

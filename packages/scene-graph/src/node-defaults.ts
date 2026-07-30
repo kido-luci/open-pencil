@@ -104,6 +104,7 @@ export function createDefaultNode(
     textUnderlineOffset: null,
     maxLines: null,
     styleRuns: [],
+    textLines: [],
     fontVariations: [],
     fontFeatures: [],
     horizontalConstraint: 'MIN',

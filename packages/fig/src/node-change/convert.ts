@@ -344,6 +344,7 @@ function importedTextLineHeight(nc: NodeChange): number | null {
 type TextProps = Pick<
   SceneNode,
   | 'text'
+  | 'textLines'
   | 'fontSize'
   | 'fontFamily'
   | 'fontWeight'
@@ -390,9 +391,29 @@ function convertTextDecorationProps(
   }
 }
 
-function convertTextProps(nc: NodeChange, blobs: Uint8Array[]): TextProps {
+export function convertTextLines(
+  lines: NonNullable<NodeChange['textData']>['lines'] | undefined
+): SceneNode['textLines'] {
+  if (!lines?.length) return []
+  return lines.map((line) => ({
+    lineType:
+      line.lineType === 'ORDERED_LIST' || line.lineType === 'UNORDERED_LIST'
+        ? line.lineType
+        : 'PLAIN',
+    indentationLevel: line.indentationLevel ?? 0
+  }))
+}
+
+function convertTextContent(nc: NodeChange): Pick<SceneNode, 'text' | 'textLines'> {
   return {
     text: nc.textData?.characters ?? '',
+    textLines: convertTextLines(nc.textData?.lines)
+  }
+}
+
+function convertTextProps(nc: NodeChange, blobs: Uint8Array[]): TextProps {
+  return {
+    ...convertTextContent(nc),
     fontSize: nc.fontSize ?? 14,
     fontFamily: nc.fontName?.family ?? DEFAULT_FONT_FAMILY,
     fontWeight: styleToWeight(nc.fontName?.style ?? ''),

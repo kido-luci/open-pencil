@@ -6,6 +6,7 @@ import {
 import type { GUID } from '@open-pencil/kiwi/fig/codec'
 
 import type { OverridePatch } from '../patches'
+import { getComponentRoot } from '../resolve'
 import type { OverrideContext, SymbolOverride, SymbolOverrideFields } from '../types'
 import { convertOverrideToProps } from './props'
 
@@ -73,6 +74,36 @@ function applyVariableRadiusOverrides(
   }
 }
 
+// Figma writes {sessionID: -1, localID: -1} for a style reference an outer
+// instance DETACHED (overrideLevel marks the chain level it undoes).
+const DETACHED_STYLE_ID = 4294967295
+
+function isDetachedStyleRef(ref: unknown): boolean {
+  const guid = (ref as { guid?: GUID } | undefined)?.guid
+  return guid?.sessionID === DETACHED_STYLE_ID && guid.localID === DETACHED_STYLE_ID
+}
+
+/**
+ * A detached fill style means "undo the fill overridden by an intermediate
+ * master; show the source component's own fill again". The override carries
+ * no fillPaints of its own, so revert to the ultimate source node's fills —
+ * for a target that already shows its source fill this is a no-op.
+ */
+function applyDetachedFillReversion(
+  ctx: OverrideContext,
+  targetId: string,
+  fields: SymbolOverrideFields,
+  props: ReturnType<typeof convertOverrideToProps>
+): void {
+  if (props.fills) return
+  if (!isDetachedStyleRef(fields.styleIdForFill)) return
+  const rootId = getComponentRoot(ctx, targetId)
+  if (rootId === targetId) return
+  const root = ctx.graph.getNode(rootId)
+  if (!root?.fills?.length) return
+  props.fills = structuredClone(root.fills)
+}
+
 export function patchFromSymbolOverride(
   ctx: OverrideContext,
   targetId: string,
@@ -92,6 +123,7 @@ export function patchFromSymbolOverride(
     applyStyleRefsToFields(ctx.changeMap, fields)
     const props = convertOverrideToProps(fields)
     applyVariableRadiusOverrides(ctx, fields, props)
+    applyDetachedFillReversion(ctx, targetId, fields, props)
     if (Object.keys(props).length > 0) patch.props = props
   }
 

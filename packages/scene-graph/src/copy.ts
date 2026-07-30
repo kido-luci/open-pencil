@@ -224,6 +224,7 @@ export function cloneNodeProps(
     effects: copyOpt(src.effects, (value) => markCopySource(value, copyEffects(value))),
     layoutGrids: copyOpt(src.layoutGrids, copyLayoutGrids),
     styleRuns: copyOpt(src.styleRuns, (value) => markCopySource(value, copyStyleRuns(value))),
+    textLines: copyOpt(src.textLines, copySpread),
     // Generated instance descendants have no independent Figma provenance. Retaining the source
     // component's opaque raw payload here duplicates megabytes of metadata per instance.
     source: componentId === null ? structuredClone(src.source) : createDefaultSourceMetadata(),

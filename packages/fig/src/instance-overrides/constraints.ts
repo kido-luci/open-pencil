@@ -18,6 +18,15 @@ export function applyConstraintScaling(ctx: OverrideContext): void {
     if (node.type !== 'INSTANCE' || !node.componentId) continue
     const comp = graph.getNode(node.componentId)
     if (!comp || comp.width <= 0 || comp.height <= 0) continue
+
+    // Scale-tool resize: symbolData.uniformScaleFactor means Figma scaled
+    // EVERY descendant uniformly, regardless of constraints.
+    const uniformFactor = node.source.fig.uniformScaleFactor
+    if (uniformFactor != null && Math.abs(uniformFactor - 1) > 0.001 && node.layoutMode === 'NONE') {
+      scaleChildrenUniform(graph, node, comp, uniformFactor, scaled, ctx.geometryOverrideNodes)
+      continue
+    }
+
     const basis = resolveScaleBasis(graph, node, comp)
     if (!basis) continue
 
@@ -170,6 +179,77 @@ function scaleChildren(
         useCurrentChildAsSource,
         strokeScale
       )
+    }
+  }
+}
+
+/**
+ * Uniform scale-tool resize: every child scales by the same factor, ignoring
+ * constraints. Fields already fixed by derived symbol data are kept. At a
+ * nested-instance hop the factor is recomputed from the instance's scaled
+ * size against its own component, so pre-resized inner instances stay right.
+ */
+const UNIFORM_RADIUS_KEYS = [
+  'cornerRadius',
+  'topLeftRadius',
+  'topRightRadius',
+  'bottomRightRadius',
+  'bottomLeftRadius'
+] as const
+
+function uniformChildUpdates(
+  child: SceneNode,
+  compChild: SceneNode,
+  factor: number,
+  geometryOverrideNodes: Set<string>
+): Partial<SceneNode> {
+  const derived = child.figmaDerivedLayout
+  const updates: Partial<SceneNode> = {}
+  if (derived?.x === undefined) updates.x = compChild.x * factor
+  if (derived?.y === undefined) updates.y = compChild.y * factor
+  if (derived?.width === undefined) updates.width = compChild.width * factor
+  if (derived?.height === undefined) updates.height = compChild.height * factor
+  for (const key of UNIFORM_RADIUS_KEYS) {
+    if (compChild[key] > 0) updates[key] = compChild[key] * factor
+  }
+  if (!geometryOverrideNodes.has(child.id)) {
+    Object.assign(updates, scaledGeometryUpdates(compChild, factor, factor, false))
+  }
+  updates.strokes = scaledStrokes(compChild, child, factor, factor, factor)
+  return updates
+}
+
+function scaleChildrenUniform(
+  graph: SceneGraph,
+  instance: SceneNode,
+  comp: SceneNode,
+  factor: number,
+  scaled: Set<string>,
+  geometryOverrideNodes: Set<string>
+): void {
+  const len = Math.min(instance.childIds.length, comp.childIds.length)
+  for (let i = 0; i < len; i++) {
+    const child = graph.getNode(instance.childIds[i])
+    const compChild = graph.getNode(comp.childIds[i])
+    if (!child || !compChild) continue
+
+    const updates = uniformChildUpdates(child, compChild, factor, geometryOverrideNodes)
+    graph.updateNode(child.id, updates)
+    scaled.add(child.id)
+
+    if (child.childIds.length === 0) continue
+    if (child.type === 'INSTANCE' && child.componentId) {
+      const childComp = graph.getNode(child.componentId)
+      if (!childComp || childComp.width <= 0) continue
+      const width = updates.width ?? child.width
+      const childFactor = width / childComp.width
+      if (Math.abs(childFactor - 1) > 0.001) {
+        scaleChildrenUniform(graph, child, childComp, childFactor, scaled, geometryOverrideNodes)
+      }
+      continue
+    }
+    if (compChild.childIds.length > 0) {
+      scaleChildrenUniform(graph, child, compChild, factor, scaled, geometryOverrideNodes)
     }
   }
 }

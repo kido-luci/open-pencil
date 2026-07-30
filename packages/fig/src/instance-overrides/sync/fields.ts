@@ -39,6 +39,8 @@ function assignDirectUpdate(
   switch (key) {
     case 'text':
       updates.text = source.text
+      // Line list structure travels with the characters it describes.
+      updates.textLines = source.textLines.map((line) => ({ ...line }))
       break
     case 'visible':
       updates.visible = source.visible

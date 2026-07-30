@@ -12,6 +12,7 @@ import type { SceneNode } from '@open-pencil/scene-graph'
 
 import { resolveRGBAForPreview } from '#core/color/management'
 import { DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE } from '#core/constants'
+import { listTextView } from '#core/canvas/text/lists'
 import { transformTextCase } from '#core/text/case'
 import { fontFallbackScriptForCharacter } from '#core/text/coverage'
 import { resolveNodeTextDirection } from '#core/text/direction'
@@ -500,10 +501,14 @@ export function buildParagraph(
   if (!r.fontProvider) throw new Error('Font provider not initialized')
   const builder = ck.ParagraphBuilder.MakeFromFontProvider(paraStyle, r.fontProvider)
 
-  if (node.styleRuns.length === 0) {
-    addParagraphText(builder, node, node.text)
+  // List lines render through a marker-augmented view of the text/runs.
+  const listView = listTextView(node)
+  const textNode = listView ? { ...node, text: listView.text, styleRuns: listView.styleRuns } : node
+
+  if (textNode.styleRuns.length === 0) {
+    addParagraphText(builder, textNode, textNode.text)
   } else {
-    addStyledRuns(r, builder, node, baseColor, baseFontSize, fontFamilies, halfLeading)
+    addStyledRuns(r, builder, textNode, baseColor, baseFontSize, fontFamilies, halfLeading)
   }
 
   const paragraph = builder.build()

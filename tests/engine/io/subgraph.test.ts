@@ -84,6 +84,29 @@ describe('export subgraph extraction', () => {
     expect(parsed.getPages().map((node) => node.name)).toEqual(['Target'])
   })
 
+  test('page extraction keeps variables referenced by symbol overrides', () => {
+    const graph = new SceneGraph()
+    const page = graph.getPages()[0]
+    const frame = graph.createNode('FRAME', page.id, { name: 'Frame' })
+    frame.source.fig.symbolOverrides = [
+      { fillPaints: [{ colorVar: { value: { alias: { assetRef: { key: 'lib-key' } } } } }] }
+    ]
+    graph.addVariable({
+      id: 'v1',
+      name: 'content-secondary',
+      type: 'COLOR',
+      collectionId: 'col1',
+      valuesByMode: {},
+      description: '',
+      hiddenFromPublishing: false,
+      key: 'lib-key'
+    })
+
+    const extracted = extractExportGraph(graph, { scope: 'page', pageId: page.id })
+
+    expect(extracted.graph.variables.has('v1')).toBe(true)
+  })
+
   test('fig page export preserves valid instance component references without serializing instance children', async () => {
     await initCodec()
     const graph = new SceneGraph()

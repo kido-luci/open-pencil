@@ -83,6 +83,59 @@ describe('@open-pencil/fig instance interpretation', () => {
     expect(graph.getNode(leaf.id)).toMatchObject({ width: 80, fills: source.fills })
   })
 
+  test('uniformScaleFactor scales children regardless of constraints', () => {
+    const graph = new SceneGraph()
+    const pageId = graph.getPages()[0].id
+    const component = graph.createNode('COMPONENT', pageId, { width: 200, height: 400 })
+    graph.createNode('RECTANGLE', component.id, {
+      name: 'photo',
+      x: 20,
+      y: 40,
+      width: 160,
+      height: 320
+    })
+    const instance = graph.createNode('INSTANCE', pageId, {
+      componentId: component.id,
+      width: 100,
+      height: 200,
+      childIds: []
+    })
+    instance.source.fig.uniformScaleFactor = 0.5
+
+    populateAndApplyOverrides(graph, new Map(), new Map())
+
+    const child = graph.getNode(graph.getNode(instance.id)?.childIds[0] ?? '')
+    expect(child).toMatchObject({ x: 10, y: 20, width: 80, height: 160 })
+  })
+
+  test('uniformScaleFactor reaches children of nested instances', () => {
+    const graph = new SceneGraph()
+    const pageId = graph.getPages()[0].id
+    const inner = graph.createNode('COMPONENT', pageId, { name: 'Inner', width: 200, height: 400 })
+    graph.createNode('RECTANGLE', inner.id, { name: 'photo', width: 200, height: 400 })
+    const outer = graph.createNode('COMPONENT', pageId, { name: 'Outer', width: 200, height: 400 })
+    graph.createNode('INSTANCE', outer.id, {
+      componentId: inner.id,
+      width: 200,
+      height: 400,
+      childIds: []
+    })
+    const instance = graph.createNode('INSTANCE', pageId, {
+      componentId: outer.id,
+      width: 100,
+      height: 200,
+      childIds: []
+    })
+    instance.source.fig.uniformScaleFactor = 0.5
+
+    populateAndApplyOverrides(graph, new Map(), new Map())
+
+    const nested = graph.getNode(graph.getNode(instance.id)?.childIds[0] ?? '')
+    expect(nested).toMatchObject({ width: 100, height: 200 })
+    const grandchild = graph.getNode(nested?.childIds[0] ?? '')
+    expect(grandchild).toMatchObject({ width: 100, height: 200 })
+  })
+
   test('preserves protected text while synchronizing other fields', () => {
     const graph = new SceneGraph()
     const pageId = graph.getPages()[0].id

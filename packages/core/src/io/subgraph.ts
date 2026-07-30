@@ -114,7 +114,49 @@ function collectReferencedResources(source: SceneGraph, graph: SceneGraph) {
       collectVariableClosure(source, variableId, variableIds)
     }
   }
+  collectOverrideVariables(source, graph, variableIds)
   return { imageHashes, variableIds }
+}
+
+/**
+ * Symbol overrides re-serialize verbatim and re-apply on import, and their
+ * paints may reference color variables via assetRef aliases rather than node
+ * boundVariables. Without the referenced variables the reimport falls back to
+ * each paint's cached literal color (e.g. a white icon that the variable
+ * would have turned grey).
+ */
+function collectOverrideVariables(source: SceneGraph, graph: SceneGraph, out: Set<string>): void {
+  const keyToId = new Map<string, string>()
+  for (const [id, variable] of source.variables) {
+    if (variable.key) keyToId.set(variable.key, id)
+  }
+  if (keyToId.size === 0) return
+
+  for (const node of graph.nodes.values()) {
+    const overrides = node.source.fig.symbolOverrides
+    if (overrides.length === 0) continue
+    for (const key of collectAssetRefKeys(overrides, new Set<string>())) {
+      const id = keyToId.get(key)
+      if (id) collectVariableClosure(source, id, out)
+    }
+  }
+}
+
+function collectAssetRefKeys(value: unknown, out: Set<string>): Set<string> {
+  if (Array.isArray(value)) {
+    for (const item of value) collectAssetRefKeys(item, out)
+    return out
+  }
+  if (typeof value !== 'object' || value === null) return out
+  for (const [key, child] of Object.entries(value)) {
+    if (key === 'assetRef') {
+      const ref = child as { key?: unknown }
+      if (typeof ref.key === 'string') out.add(ref.key)
+      continue
+    }
+    collectAssetRefKeys(child, out)
+  }
+  return out
 }
 
 function collectVariableClosure(source: SceneGraph, variableId: string, out: Set<string>) {

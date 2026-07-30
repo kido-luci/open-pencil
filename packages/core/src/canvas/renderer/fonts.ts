@@ -82,6 +82,16 @@ export async function loadFonts(
   fontManager.attachProvider(r.ck, r.fontProvider)
   syncFontGeneration(r)
 
+  // Best-effort, async on purpose: the emoji font is large and text without
+  // emoji must not wait for it. Registration bumps the font generation, so
+  // repainting once it lands is enough to swap tofu for glyphs.
+  void (async () => {
+    const families = await fontManager.ensureEmojiFallback()
+    if (r.isDestroyed() || families.length === 0) return
+    syncFontGeneration(r)
+    r.invalidateAllPictures()
+  })()
+
   const fontData = await fontManager.loadFont(DEFAULT_FONT_FAMILY, 'Regular')
   if (r.isDestroyed()) return
   if (fontData) {

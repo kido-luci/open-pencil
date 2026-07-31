@@ -269,6 +269,8 @@ function collectSelectionIds(source: SceneGraph, nodeIds: string[]): Set<string>
   }
 
   collectComponentDependencies(source, ids)
+  collectSlotContentSubtrees(source, ids)
+  collectComponentDependencies(source, ids)
   return ids
 }
 

@@ -34,6 +34,7 @@ export type ComponentPropValue = {
   textValue?: ComponentPropTextValue
   textDataValue?: { characters?: string }
   guidValue?: GUID
+  slotContentId?: GUID
 }
 
 export interface ComponentPropAssignment {
@@ -45,6 +46,7 @@ export interface ComponentPropAssignment {
       textValue?: string
       textDataValue?: { characters?: string }
       symbolIdValue?: { guid?: GUID }
+      slotContentIdValue?: { guid?: GUID }
     }
   }
 }
@@ -124,6 +126,12 @@ export interface OverrideContext {
   kiwiPropertyNodes: Set<string>
   /** Nodes whose Figma-derived geometry should not be overwritten by clone propagation. */
   geometryOverrideNodes: Set<string>
+  /**
+   * Clones created by SLOT_CONTENT_ID replacement. Symbol overrides address
+   * the REPLACED component subtree, so structural fallbacks must never
+   * resolve into these nodes.
+   */
+  slotContentNodes: Set<string>
   /** When set, apply/populate expensive instance work only inside these already-imported nodes. */
   activeNodeIds?: Set<string>
 }

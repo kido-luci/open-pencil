@@ -276,7 +276,56 @@ function pageNodeIds(source: SceneGraph, pageId: string): Set<string> {
   const ids = new Set<string>([source.rootId])
   collectDescendants(source, pageId, ids)
   collectComponentDependencies(source, ids)
+  collectSlotContentSubtrees(source, ids)
+  // Slot content can itself contain instances; resolve their components too.
+  collectComponentDependencies(source, ids)
   return ids
+}
+
+/**
+ * SLOT_CONTENT_ID assignments point at local mirror subtrees (usually on the
+ * internal canvas) that re-populate the slot on import. Without them a
+ * reimported export falls back to the component's built-in slot content.
+ */
+function collectSlotContentSubtrees(source: SceneGraph, ids: Set<string>): void {
+  const bySourceGuid = new Map<string, string>()
+  for (const node of source.nodes.values()) {
+    if (node.source.id) bySourceGuid.set(node.source.id, node.id)
+  }
+  if (bySourceGuid.size === 0) return
+
+  const extra = new Set<string>()
+  for (const id of ids) {
+    const node = source.getNode(id)
+    if (!node) continue
+    const raw = [node.source.fig.componentPropAssignments, node.source.fig.symbolOverrides]
+    for (const guid of collectSlotContentGuids(raw, new Set<string>())) {
+      const contentId = bySourceGuid.get(guid)
+      if (!contentId || ids.has(contentId)) continue
+      collectAncestors(source, contentId, extra)
+      collectDescendants(source, contentId, extra)
+    }
+  }
+  for (const id of extra) ids.add(id)
+}
+
+function collectSlotContentGuids(value: unknown, out: Set<string>): Set<string> {
+  if (Array.isArray(value)) {
+    for (const item of value) collectSlotContentGuids(item, out)
+    return out
+  }
+  if (typeof value !== 'object' || value === null) return out
+  for (const [key, child] of Object.entries(value)) {
+    if (key === 'slotContentIdValue') {
+      const guid = (child as { guid?: { sessionID?: unknown; localID?: unknown } }).guid
+      if (typeof guid?.sessionID === 'number' && typeof guid.localID === 'number') {
+        out.add(`${guid.sessionID}:${guid.localID}`)
+      }
+      continue
+    }
+    collectSlotContentGuids(child, out)
+  }
+  return out
 }
 
 function rootNodeIds(source: SceneGraph): Set<string> {

@@ -8,6 +8,7 @@ import {
   syncNodeProps,
   type ProtectionMap
 } from '../src/instance-overrides'
+import type { InstanceNodeChange } from '../src/instance-overrides/types'
 
 describe('@open-pencil/fig instance interpretation', () => {
   test('populates an empty instance from its component tree', () => {
@@ -134,6 +135,65 @@ describe('@open-pencil/fig instance interpretation', () => {
     expect(nested).toMatchObject({ width: 100, height: 200 })
     const grandchild = graph.getNode(nested?.childIds[0] ?? '')
     expect(grandchild).toMatchObject({ width: 100, height: 200 })
+  })
+
+  test('SLOT_CONTENT_ID assignments replace placeholder content with the local mirror', () => {
+    const graph = new SceneGraph()
+    const pageId = graph.getPages()[0].id
+    const component = graph.createNode('COMPONENT', pageId, { name: 'Bar', width: 100, height: 20 })
+    const placeholder = graph.createNode('FRAME', component.id, {
+      name: 'Right Slot',
+      width: 40,
+      height: 20
+    })
+    graph.createNode('TEXT', placeholder.id, { name: 'Save', text: 'Save', opacity: 0.2 })
+    const content = graph.createNode('FRAME', pageId, { name: 'Right Slot', width: 60, height: 20 })
+    graph.createNode('TEXT', content.id, { name: 'Save', text: 'Save' })
+    const instance = graph.createNode('INSTANCE', pageId, {
+      componentId: component.id,
+      width: 100,
+      height: 20,
+      childIds: []
+    })
+
+    const changeMap = new Map<string, InstanceNodeChange>([
+      [
+        '1:1',
+        {
+          type: 'FRAME',
+          componentPropRefs: [
+            { defID: { sessionID: 9, localID: 9 }, componentPropNodeField: 'SLOT_CONTENT_ID' }
+          ]
+        }
+      ],
+      [
+        '1:2',
+        {
+          type: 'INSTANCE',
+          componentPropAssignments: [
+            {
+              defID: { sessionID: 9, localID: 9 },
+              value: {},
+              varValue: { value: { slotContentIdValue: { guid: { sessionID: 1, localID: 3 } } } }
+            }
+          ]
+        }
+      ]
+    ])
+    const guidToNodeId = new Map([
+      ['1:1', placeholder.id],
+      ['1:2', instance.id],
+      ['1:3', content.id]
+    ])
+
+    populateAndApplyOverrides(graph, changeMap, guidToNodeId)
+
+    const slotClone = graph.getNode(graph.getNode(instance.id)?.childIds[0] ?? '')
+    expect(slotClone?.name).toBe('Right Slot')
+    expect(slotClone?.width).toBe(60)
+    const text = graph.getNode(slotClone?.childIds[0] ?? '')
+    expect(text?.text).toBe('Save')
+    expect(text?.opacity).toBe(1)
   })
 
   test('preserves protected text while synchronizing other fields', () => {

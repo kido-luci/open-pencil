@@ -35,6 +35,8 @@ function resolveAssignmentValue(
   if (!isEmptyPropValue(assignment.value)) return assignment.value
 
   const variableValue = assignment.varValue?.value
+  if (variableValue?.slotContentIdValue?.guid)
+    return { slotContentId: variableValue.slotContentIdValue.guid }
   if (variableValue?.symbolIdValue?.guid) return { guidValue: variableValue.symbolIdValue.guid }
   if (variableValue?.boolValue !== undefined) return { boolValue: variableValue.boolValue }
   if (variableValue?.textValue !== undefined) return { textValue: variableValue.textValue }

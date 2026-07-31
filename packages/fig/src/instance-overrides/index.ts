@@ -261,6 +261,7 @@ function buildOverrideContext(
     protectedFields: new Map(),
     kiwiPropertyNodes,
     geometryOverrideNodes,
+    slotContentNodes: new Set(),
     activeNodeIds
   }
 }

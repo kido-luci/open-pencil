@@ -75,6 +75,44 @@ function applySwapProp(
   )
 }
 
+function markSlotContentSubtree(ctx: OverrideContext, nodeId: string): void {
+  ctx.slotContentNodes.add(nodeId)
+  const node = ctx.graph.getNode(nodeId)
+  if (!node) return
+  for (const childId of node.childIds) markSlotContentSubtree(ctx, childId)
+}
+
+/**
+ * A slot placeholder renders the ASSIGNED local subtree instead of its own
+ * component content: Figma stores the content as a mirror node (usually on
+ * the internal canvas) and points the instance at it via SLOT_CONTENT_ID.
+ * Overrides recorded against the replaced component subtree no longer apply
+ * — resolution refuses to land inside slot clones.
+ */
+function applySlotContentProp(
+  ctx: OverrideContext,
+  childId: string,
+  val: ComponentPropValue,
+  modified?: Set<string>
+): void {
+  const guid = val.slotContentId
+  if (!guid) return
+  const contentId = ctx.guidToNodeId.get(guidToString(guid))
+  const content = contentId ? ctx.graph.getNode(contentId) : undefined
+  const target = ctx.graph.getNode(childId)
+  if (!content || !target || contentId === childId) return
+
+  ctx.graph.preserveSourceMetadataDuring(() => {
+    for (const existingId of Array.from(target.childIds)) ctx.graph.deleteNode(existingId)
+    for (const sourceChildId of content.childIds) {
+      const clone = ctx.graph.cloneTree(sourceChildId, childId)
+      if (clone) markSlotContentSubtree(ctx, clone.id)
+    }
+    ctx.graph.updateNode(childId, { width: content.width, height: content.height })
+  })
+  modified?.add(childId)
+}
+
 export function applyComponentPropRef(
   ctx: OverrideContext,
   childId: string,
@@ -91,6 +129,9 @@ export function applyComponentPropRef(
       break
     case 'OVERRIDDEN_SYMBOL_ID':
       applySwapProp(ctx, childId, val, modified)
+      break
+    case 'SLOT_CONTENT_ID':
+      applySlotContentProp(ctx, childId, val, modified)
       break
   }
 }

@@ -398,7 +398,9 @@ export function resolveOverrideTarget(
 
     return null
   }
-  return currentId
+  // Overrides address the component subtree a slot replaced; structural
+  // fallbacks must not re-land on the local slot content.
+  return ctx.slotContentNodes.has(currentId) ? null : currentId
 }
 
 /**

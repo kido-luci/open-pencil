@@ -26,7 +26,11 @@ function nodeNeedsSceneBackdrop(graph: SceneGraph, nodeId: string): boolean {
   const node = graph.getNode(nodeId)
   if (!node) return false
   if (node.blendMode !== 'NORMAL' && node.blendMode !== 'PASS_THROUGH') return true
-  if (node.effects.some((effect) => effect.visible && effect.type === 'BACKGROUND_BLUR')) {
+  if (
+    node.effects.some(
+      (effect) => effect.visible && (effect.type === 'BACKGROUND_BLUR' || effect.type === 'GLASS')
+    )
+  ) {
     return true
   }
   return node.childIds.some((childId) => nodeNeedsSceneBackdrop(graph, childId))

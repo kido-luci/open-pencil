@@ -548,6 +548,13 @@ export function renderEffects(
       r.applyClippedBlur(canvas, node, rect, hasRadius, effect.radius / 2)
     }
 
+    if (pass === 'behind' && effect.type === 'GLASS') {
+      // GLASS (Figma liquid glass) approximated as a frosted backdrop blur.
+      // Refraction, specular rim and noise are not reproduced; the full
+      // radius (not radius/2) compensates for the diffusion they add.
+      r.applyClippedBlur(canvas, node, rect, hasRadius, effect.radius)
+    }
+
     if (pass === 'front' && effect.type === 'INNER_SHADOW') {
       const shapeNode = shadowShapeChild ?? node
       if (shapeNode.type === 'TEXT') {
